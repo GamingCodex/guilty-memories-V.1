@@ -1,0 +1,133 @@
+import pygame
+import random
+
+pygame.init()
+
+# Configuración
+CELL_SIZE = 130
+COLS = 6
+ROWS = 4
+
+BOARD_WIDTH = CELL_SIZE * COLS
+BOARD_HEIGHT = CELL_SIZE * ROWS
+
+# Offset para el tablero (dejamos margen a los lados)
+BOARD_X_OFFSET = 200
+BOARD_Y_OFFSET = 150
+
+SCREEN_WIDTH = BOARD_WIDTH + BOARD_X_OFFSET * 2
+SCREEN_HEIGHT = BOARD_HEIGHT + BOARD_Y_OFFSET * 2
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+pygame.display.set_caption("guilty memories")
+
+# Colores
+BG_COLOR = (20, 20, 20)
+BOX_COLOR = (128, 0, 128)
+GRID_COLOR = (0, 255, 128)
+BOARD_BORDER_COLOR = (255, 255, 255)
+
+# Generar posiciones del tablero
+grid_positions = [
+    (BOARD_X_OFFSET + x * CELL_SIZE, BOARD_Y_OFFSET + y * CELL_SIZE)
+    for y in range(ROWS) for x in range(COLS)
+]
+
+# Crear bloques (colocados inicialmente fuera del tablero)
+boxes = []
+original_positions = {}
+
+def generate_starting_position():
+    """Devuelve una posición aleatoria fuera del tablero pero dentro de la pantalla"""
+    margin = 10
+    side = random.choice(["top", "bottom", "left", "right"])
+    if side == "top":
+        return (
+            random.randint(BOARD_X_OFFSET, BOARD_X_OFFSET + BOARD_WIDTH - CELL_SIZE),
+            random.randint(margin, BOARD_Y_OFFSET - CELL_SIZE - margin)
+        )
+    elif side == "bottom":
+        return (
+            random.randint(BOARD_X_OFFSET, BOARD_X_OFFSET + BOARD_WIDTH - CELL_SIZE),
+            random.randint(BOARD_Y_OFFSET + BOARD_HEIGHT + margin, SCREEN_HEIGHT - CELL_SIZE - margin)
+        )
+    elif side == "left":
+        return (
+            random.randint(margin, BOARD_X_OFFSET - CELL_SIZE - margin),
+            random.randint(BOARD_Y_OFFSET, BOARD_Y_OFFSET + BOARD_HEIGHT - CELL_SIZE)
+        )
+    else:  # right
+        return (
+            random.randint(BOARD_X_OFFSET + BOARD_WIDTH + margin, SCREEN_WIDTH - CELL_SIZE - margin),
+            random.randint(BOARD_Y_OFFSET, BOARD_Y_OFFSET + BOARD_HEIGHT - CELL_SIZE)
+        )
+
+for i in range(len(grid_positions)):
+    start_pos = generate_starting_position()
+    rect = pygame.Rect(start_pos[0], start_pos[1], CELL_SIZE, CELL_SIZE)
+    boxes.append(rect)
+    original_positions[id(rect)] = start_pos
+
+# Función para alinear a la celda más cercana válida
+def snap_to_grid(rect):
+    x = round((rect.x - BOARD_X_OFFSET) / CELL_SIZE) * CELL_SIZE + BOARD_X_OFFSET
+    y = round((rect.y - BOARD_Y_OFFSET) / CELL_SIZE) * CELL_SIZE + BOARD_Y_OFFSET
+    snapped = (x, y)
+    if snapped in grid_positions and snapped not in [r.topleft for r in boxes if r != rect]:
+        rect.topleft = snapped
+    else:
+        rect.topleft = original_positions[id(rect)]
+
+# Bucle principal
+run = True
+selected_box = None
+offset_x = 0
+offset_y = 0
+
+while run:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            run = False
+
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            mouse_pos = pygame.mouse.get_pos()
+            for rect in boxes:
+                if rect.collidepoint(mouse_pos):
+                    selected_box = rect
+                    offset_x = rect.x - mouse_pos[0]
+                    offset_y = rect.y - mouse_pos[1]
+                    break
+
+        elif event.type == pygame.MOUSEBUTTONUP:
+            if selected_box:
+                snap_to_grid(selected_box)
+                selected_box = None
+
+        elif event.type == pygame.MOUSEMOTION and selected_box:
+            mouse_pos = pygame.mouse.get_pos()
+            selected_box.x = mouse_pos[0] + offset_x
+            selected_box.y = mouse_pos[1] + offset_y
+
+    # Dibujar todo
+    screen.fill(BG_COLOR)
+
+    # Dibujar marco del tablero
+    pygame.draw.rect(
+        screen,
+        BOARD_BORDER_COLOR,
+        (BOARD_X_OFFSET, BOARD_Y_OFFSET, BOARD_WIDTH, BOARD_HEIGHT),
+        4
+    )
+
+    # Dibujar rejilla del tablero
+    for pos in grid_positions:
+        grid_rect = pygame.Rect(pos[0], pos[1], CELL_SIZE, CELL_SIZE)
+        pygame.draw.rect(screen, GRID_COLOR, grid_rect, 2)
+
+    # Dibujar piezas
+    for rect in boxes:
+        pygame.draw.rect(screen, BOX_COLOR, rect)
+        pygame.draw.rect(screen, GRID_COLOR, rect, 2)
+
+    pygame.display.flip()
+
+pygame.quit()
