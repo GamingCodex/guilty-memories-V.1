@@ -11,7 +11,6 @@ ROWS = 4
 BOARD_WIDTH = CELL_SIZE * COLS
 BOARD_HEIGHT = CELL_SIZE * ROWS
 
-# Offset para el tablero (dejamos margen a los lados)
 BOARD_X_OFFSET = 200
 BOARD_Y_OFFSET = 150
 
@@ -32,12 +31,12 @@ grid_positions = [
     for y in range(ROWS) for x in range(COLS)
 ]
 
-# Crear bloques (colocados inicialmente fuera del tablero)
+# Crear bloques (fuera del tablero)
 boxes = []
 original_positions = {}
+locked_boxes = []
 
 def generate_starting_position():
-    """Devuelve una posición aleatoria fuera del tablero pero dentro de la pantalla"""
     margin = 10
     side = random.choice(["top", "bottom", "left", "right"])
     if side == "top":
@@ -55,13 +54,13 @@ def generate_starting_position():
             random.randint(margin, BOARD_X_OFFSET - CELL_SIZE - margin),
             random.randint(BOARD_Y_OFFSET, BOARD_Y_OFFSET + BOARD_HEIGHT - CELL_SIZE)
         )
-    else:  # right
+    else:
         return (
             random.randint(BOARD_X_OFFSET + BOARD_WIDTH + margin, SCREEN_WIDTH - CELL_SIZE - margin),
             random.randint(BOARD_Y_OFFSET, BOARD_Y_OFFSET + BOARD_HEIGHT - CELL_SIZE)
         )
 
-for i in range(len(grid_positions)):
+for _ in range(len(grid_positions)):
     start_pos = generate_starting_position()
     rect = pygame.Rect(start_pos[0], start_pos[1], CELL_SIZE, CELL_SIZE)
     boxes.append(rect)
@@ -72,8 +71,10 @@ def snap_to_grid(rect):
     x = round((rect.x - BOARD_X_OFFSET) / CELL_SIZE) * CELL_SIZE + BOARD_X_OFFSET
     y = round((rect.y - BOARD_Y_OFFSET) / CELL_SIZE) * CELL_SIZE + BOARD_Y_OFFSET
     snapped = (x, y)
+
     if snapped in grid_positions and snapped not in [r.topleft for r in boxes if r != rect]:
         rect.topleft = snapped
+        locked_boxes.append(rect)  # ¡Bloquear pieza!
     else:
         rect.topleft = original_positions[id(rect)]
 
@@ -91,7 +92,7 @@ while run:
         elif event.type == pygame.MOUSEBUTTONDOWN:
             mouse_pos = pygame.mouse.get_pos()
             for rect in boxes:
-                if rect.collidepoint(mouse_pos):
+                if rect.collidepoint(mouse_pos) and rect not in locked_boxes:
                     selected_box = rect
                     offset_x = rect.x - mouse_pos[0]
                     offset_y = rect.y - mouse_pos[1]
@@ -110,7 +111,7 @@ while run:
     # Dibujar todo
     screen.fill(BG_COLOR)
 
-    # Dibujar marco del tablero
+    # Marco del tablero
     pygame.draw.rect(
         screen,
         BOARD_BORDER_COLOR,
@@ -118,7 +119,7 @@ while run:
         4
     )
 
-    # Dibujar rejilla del tablero
+    # Rejilla del tablero
     for pos in grid_positions:
         grid_rect = pygame.Rect(pos[0], pos[1], CELL_SIZE, CELL_SIZE)
         pygame.draw.rect(screen, GRID_COLOR, grid_rect, 2)
@@ -131,3 +132,5 @@ while run:
     pygame.display.flip()
 
 pygame.quit()
+
+ 
